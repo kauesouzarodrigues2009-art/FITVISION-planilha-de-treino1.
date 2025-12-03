@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FitVison — Planilha de Treino</title>
+  <style>
+    :root{
+      --bg:#05060a; --card:#07102880; --glass: rgba(255,255,255,0.05);
+      --accent1: #6EE7F9; --accent2: #A78BFA; --accent3:#F472B6;
+      --glass-border: rgba(255,255,255,0.06);
+      --text: #E6F0FF;
+      font-synthesis: none;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#020205 0%, #041025 60%);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial;margin:0}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+
+    .app{
+      width:980px;max-width:98%;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px;padding:20px;border:1px solid var(--glass-border);backdrop-filter:blur(8px);
+      box-shadow:0 10px 30px rgba(2,6,23,0.6), inset 0 -2px 20px rgba(161,139,250,0.04);
+    }
+
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#021328;box-shadow:0 6px 18px rgba(103,232,249,0.08)}
+    h1{font-size:18px;margin:0}
+    p.sub{margin:0;color:rgba(230,240,255,0.7);font-size:13px}
+
+    .controls{display:flex;gap:8px;align-items:center}
+    button, .btn{background:linear-gradient(90deg,var(--accent2),var(--accent3));border:none;color:#021328;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:8px 12px;border-radius:10px}
+
+    .main{display:grid;grid-template-columns:1fr 320px;gap:18px}
+
+    /* table card */
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;border:1px solid var(--glass-border)}
+    table{width:100%;border-collapse:collapse;color:var(--text)}
+    thead th{font-size:12px;text-align:left;padding:10px 8px;color:rgba(230,240,255,0.85)}
+    tbody td{padding:8px 8px;border-top:1px dashed rgba(255,255,255,0.03);vertical-align:middle}
+    tbody tr:hover{background:linear-gradient(90deg, rgba(167,139,250,0.04), rgba(110,231,249,0.02))}
+
+    .cell-input{background:transparent;border:0;color:var(--text);width:100%;outline:none}
+
+    .row-actions{display:flex;gap:6px}
+    .muted{color:rgba(230,240,255,0.6);font-size:13px}
+
+    /* sidebar */
+    .side{display:flex;flex-direction:column;gap:10px}
+    .side h3{margin:0;font-size:13px}
+    .prompt-box{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:10px;border-radius:10px;border:1px solid var(--glass-border);font-size:13px}
+    .small{font-size:12px;color:rgba(230,240,255,0.7)}
+
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+
+    .footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+
+    /* responsive */
+    @media (max-width:880px){.main{grid-template-columns:1fr}.side{order:2}}
+
+    /* subtle neon accents */
+    .accent-line{height:3px;border-radius:6px;background:linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));margin:10px 0}
+
+    .top-actions{display:flex;gap:8px}
+    input[type=file]{display:none}
+
+    .btn-copy{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="app" role="application">
+      <header>
+        <div class="brand">
+          <div class="logo">FV</div>
+          <div>
+            <h1>FitVison — Planilha digital</h1>
+            <p class="sub">Uma única página — crie, edite, apague e salve treinos sem cadastro.</p>
+          </div>
+        </div>
+        <div class="controls top-actions">
+          <button id="addRow">+ Exercício</button>
+          <button id="exportJSON" class="ghost">Exportar JSON</button>
+          <label class="ghost" for="importFile" style="cursor:pointer">Importar JSON</label>
+          <input id="importFile" type="file" accept="application/json">
+          <button id="clearAll" class="ghost">Limpar</button>
+        </div>
+      </header>
+
+      <div class="accent-line" aria-hidden></div>
+
+      <main class="main">
+        <section class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <strong>Planilha de treino</strong>
+            <div class="muted">Clique em uma célula para editar — mudanças salvas localmente.</div>
+          </div>
+
+          <table id="sheet">
+            <thead>
+              <tr>
+                <th style="width:36%">Exercício</th>
+                <th style="width:18%">Séries</th>
+                <th style="width:18%">Repetições</th>
+                <th style="width:24%">Observações</th>
+                <th style="width:4%"></th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <!-- linhas geradas por JS -->
+            </tbody>
+          </table>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+            <div class="small">Atalho: Ctrl/Cmd + S para salvar</div>
+            <div>
+              <button id="saveLocal" class="btn">Salvar</button>
+              <button id="downloadJSON" class="ghost">Baixar .json</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side">
+          <div class="card prompt-box">
+            <h3>Prompt para usar no ChatGPT</h3>
+            <p class="small">Use este prompt no ChatGPT para gerar uma planilha pronta (JSON array de objetos) — copie e cole aqui:</p>
+            <pre id="promptText" style="white-space:pre-wrap;margin:8px 0;padding:8px;border-radius:8px;background:rgba(0,0,0,0.15);font-size:13px">crie uma planilha de treino (tipo do treino) HTML para fazer download em forma de JSON(array de objetos) com uma tabela de treino com colunas: exercicio, series, repetições, observações e importar para o site.</pre>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+  <button id="copyPromptBtn" class="btn">Copiar prompt</button>
+</div>
+          </div>
+
+          <div class="card">
+            <h3>Instruções rápidas</h3>
+            <ol style="margin:8px 0 0 18px;padding:0;font-size:13px;color:rgba(230,240,255,0.8)">
+              <li>Abra o ChatGPT (botão) e cole o prompt.</li>
+              <li>Peça para gerar JSON (array de objetos) com as colunas: exercicio, series, repetições, observações.</li>
+              <li>Copie o JSON gerado → clique em <strong>Importar JSON</strong> ou cole no campo de import.</li>
+              <li>Edite linhas, salve e faça download quando quiser.</li>
+            </ol>
+          </div>
+
+          <div class="card">
+            <h3>Importar / Colar JSON</h3>
+            <textarea id="pasteImport" placeholder='Cole aqui JSON (array) e clique em "Importar"' style="width:100%;height:84px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);padding:8px;border-radius:8px"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="importPaste" class="btn">Importar</button>
+              <button id="validateBtn" class="ghost">Validar JSON</button>
+            </div>
+            <div id="msg" class="small" style="margin-top:8px;color:rgba(255,255,255,0.7)"></div>
+          </div>
+
+        </aside>
+      </main>
+
+      <div class="footer">
+        <div class="muted">Feito para uso pessoal — sem cadastro. Dados ficam no seu navegador.</div>
+        <div class="muted">Design futurista • Simples • Prático</div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(function(){
+  // helpers
+  const LS_KEY = 'fv_sheet_v1';
+  const tbody = document.getElementById('tbody');
+  const addRowBtn = document.getElementById('addRow');
+  const saveLocalBtn = document.getElementById('saveLocal');
+  const downloadBtn = document.getElementById('downloadJSON');
+  const exportBtn = document.getElementById('exportJSON');
+  const importFile = document.getElementById('importFile');
+  const importPaste = document.getElementById('importPaste');
+  const importBtn = document.getElementById('importPaste');
+  const importPasteBtn = document.getElementById('importPaste');
+  const importAction = document.getElementById('importPaste');
+  const importTextArea = document.getElementById('pasteImport');
+  const msg = document.getElementById('msg');
+  const copyPrompt = document.getElementById('copyPrompt');
+  const promptText = document.getElementById('promptText');
+  const openChat = document.getElementById('openChat');
+  const clearAll = document.getElementById('clearAll');
+
+  // initial state
+  let rows = [];
+
+  function makeRow(obj){
+    return {
+      id: 'r_'+Date.now()+Math.random().toString(36).slice(2,7),
+      exercicio: obj?.exercicio||obj?.exercise||'',
+      series: obj?.series||obj?.sets||'',
+      repeticoes: obj?.repetições||obj?.repeticoes||obj?.reps||obj?.repetitions||'',
+      observacoes: obj?.observacoes||obj?.observacao||obj?.observations||obj?.observacoes_text||''
+    }
+  }
+
+  function render(){
+    tbody.innerHTML='';
+    rows.forEach((r, idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="cell-input" data-field="exercicio" data-id="${r.id}" value="${escapeHtml(r.exercicio)}"></td>
+        <td><input class="cell-input" data-field="series" data-id="${r.id}" value="${escapeHtml(r.series)}"></td>
+        <td><input class="cell-input" data-field="repeticoes" data-id="${r.id}" value="${escapeHtml(r.repeticoes)}"></td>
+        <td><input class="cell-input" data-field="observacoes" data-id="${r.id}" value="${escapeHtml(r.observacoes)}"></td>
+        <td><div class="row-actions"><button class="ghost" data-action="dup" data-id="${r.id}">⎘</button><button class="ghost" data-action="del" data-id="${r.id}">✕</button></div></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    attachInputs();
+  }
+
+  function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function attachInputs(){
+    document.querySelectorAll('.cell-input').forEach(inp=>{
+      inp.onchange = (e)=>{
+        const id = inp.dataset.id;
+        const field = inp.dataset.field;
+        const row = rows.find(x=>x.id===id);
+        if(row){ row[field] = inp.value; markUnsaved(); }
+      };
+    });
+    document.querySelectorAll('[data-action]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const id = btn.dataset.id; const action = btn.dataset.action;
+        if(action==='del'){ rows = rows.filter(r=>r.id!==id); render(); saveLocal(); }
+        if(action==='dup'){ const src = rows.find(r=>r.id===id); if(src){ rows.push(makeRow(src)); render(); saveLocal(); }}
+      }
+    });
+  }
+
+  function markUnsaved(){ saveLocalBtn.textContent = 'Salvar*'; }
+
+  function saveLocal(){ localStorage.setItem(LS_KEY, JSON.stringify(rows)); saveLocalBtn.textContent='Salvar'; msg.textContent='Salvo localmente.'; setTimeout(()=>msg.textContent='',1800);
+  }
+
+  function loadLocal(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw){ const parsed = JSON.parse(raw); if(Array.isArray(parsed)){ rows = parsed.map(r=> makeRow(r)); } }
+  }catch(e){ console.error(e); }
+  }
+
+  function downloadJSONFile(){ const data = rows.map(({id,...rest})=>rest); const blob = new Blob([JSON.stringify(data, null, 2)],{type:'application/json'}); const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='planilha-treino.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+
+  // import from file
+  importFile.addEventListener('change', (e)=>{
+    const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = ()=>{
+      try{ const parsed = JSON.parse(reader.result); handleImportedArray(parsed); }catch(err){ alert('Arquivo inválido: JSON malformado'); }
+    }; reader.readAsText(f);
+  });
+
+  // paste import
+  document.getElementById('importPaste').addEventListener('click', ()=>{
+    const t = importTextArea.value.trim(); if(!t){ msg.textContent='Cole JSON no campo.'; return; }
+    try{ const parsed = JSON.parse(t); handleImportedArray(parsed); }catch(e){ msg.textContent='JSON inválido.'; }
+  });
+
+  function handleImportedArray(parsed){
+    if(!Array.isArray(parsed)){ msg.textContent='Espere um ARRAY de objetos (JSON array).'; return; }
+    rows = parsed.map(o=> makeRow(o)); render(); saveLocal(); msg.textContent='Importado com sucesso.'; setTimeout(()=>msg.textContent='',2000);
+  }
+
+  // export / validate
+  document.getElementById('validateBtn').addEventListener('click', ()=>{
+    const t = importTextArea.value.trim(); if(!t){ msg.textContent='Cole JSON para validar.'; return; }
+    try{ const p = JSON.parse(t); if(Array.isArray(p)) msg.textContent='JSON válido (array).'; else msg.textContent='JSON válido, mas não é array.'; }catch(e){ msg.textContent='JSON inválido.'; }
+  });
+
+  // copy prompt
+  copyPrompt.onclick = ()=>{ navigator.clipboard.writeText(promptText.textContent).then(()=>{ copyPrompt.textContent='Copiado!'; setTimeout(()=>copyPrompt.textContent='Copiar prompt',1200); }); };
+
+  // add, save, download
+  addRowBtn.onclick = ()=>{ rows.push(makeRow({})); render(); saveLocal(); };
+  saveLocalBtn.onclick = ()=>{ saveLocal(); };
+  downloadBtn.onclick = ()=> downloadJSONFile();
+  exportBtn.onclick = ()=> downloadJSONFile();
+  clearAll.onclick = ()=>{ if(confirm('Limpar toda a planilha? Isso apagará os dados salvos localmente.')){ rows=[]; render(); saveLocal(); }};
+
+  // keyboard save
+  window.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); saveLocal(); }});
+
+  // initial load
+  loadLocal(); if(rows.length===0){ // seed with a clean example row
+    rows = [ makeRow({exercicio:'Agachamento livre', series:'4', repeticoes:'6-8', observacoes:'Foco em forma'}) ];
+  }
+  render();
+
+  // small helpers to allow user to paste JSON via prompt area quickly
+  document.getElementById('exportJSON').addEventListener('click', ()=>downloadJSONFile());
+
+  // validate file when pasting JSON directly
+  document.getElementById('pasteImport')?.addEventListener('input', ()=>{ msg.textContent=''; });
+
+  // expose a simple import function for dev tools
+  window.FV = {importArray:handleImportedArray, getData:()=>rows.map(({id,...r})=>r)};
+
+})();
+</script>
+</body>
+</html>
