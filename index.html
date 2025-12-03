@@ -124,7 +124,8 @@
 
         <aside class="side">
           <div class="card prompt-box">
-            <h3>Prompt para usar no ChatGPT</h3>
+            <h3>Prompt para usar no ChatGPT
+<button id="openChatGPT" class="btn" style="margin-top:10px;">Abrir ChatGPT</button></h3>
             <p class="small">Use este prompt no ChatGPT para gerar uma planilha pronta (JSON array de objetos) — copie e cole aqui:</p>
             <pre id="promptText" style="white-space:pre-wrap;margin:8px 0;padding:8px;border-radius:8px;background:rgba(0,0,0,0.15);font-size:13px">crie uma planilha de treino (tipo do treino) HTML para fazer download em forma de JSON(array de objetos) com uma tabela de treino com colunas: exercicio, series, repetições, observações e importar para o site.</pre>
             <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
@@ -165,7 +166,7 @@
 
 <script>
 (function(){
-  // helpers
+  // Elements
   const LS_KEY = 'fv_sheet_v1';
   const tbody = document.getElementById('tbody');
   const addRowBtn = document.getElementById('addRow');
@@ -173,132 +174,136 @@
   const downloadBtn = document.getElementById('downloadJSON');
   const exportBtn = document.getElementById('exportJSON');
   const importFile = document.getElementById('importFile');
-  const importPaste = document.getElementById('importPaste');
-  const importBtn = document.getElementById('importPaste');
+  const pasteTextArea = document.getElementById('pasteImport');
   const importPasteBtn = document.getElementById('importPaste');
-  const importAction = document.getElementById('importPaste');
-  const importTextArea = document.getElementById('pasteImport');
-  const msg = document.getElementById('msg');
-  const copyPrompt = document.getElementById('copyPrompt');
+  const validateBtn = document.getElementById('validateBtn');
+  const copyPromptBtn = document.getElementById('copyPromptBtn');
   const promptText = document.getElementById('promptText');
-  const openChat = document.getElementById('openChat');
-  const clearAll = document.getElementById('clearAll');
+  const msg = document.getElementById('msg');
+  const clearAllBtn = document.getElementById('clearAll');
 
-  // initial state
   let rows = [];
+
+  // utility
+  function uid(){ return 'r_'+Date.now()+Math.random().toString(36).slice(2,7); }
+  function escapeHtml(s){ if(s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   function makeRow(obj){
     return {
-      id: 'r_'+Date.now()+Math.random().toString(36).slice(2,7),
+      id: uid(),
       exercicio: obj?.exercicio||obj?.exercise||'',
       series: obj?.series||obj?.sets||'',
       repeticoes: obj?.repetições||obj?.repeticoes||obj?.reps||obj?.repetitions||'',
       observacoes: obj?.observacoes||obj?.observacao||obj?.observations||obj?.observacoes_text||''
-    }
+    };
   }
 
   function render(){
     tbody.innerHTML='';
-    rows.forEach((r, idx)=>{
+    rows.forEach((r)=>{
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><input class="cell-input" data-field="exercicio" data-id="${r.id}" value="${escapeHtml(r.exercicio)}"></td>
         <td><input class="cell-input" data-field="series" data-id="${r.id}" value="${escapeHtml(r.series)}"></td>
         <td><input class="cell-input" data-field="repeticoes" data-id="${r.id}" value="${escapeHtml(r.repeticoes)}"></td>
         <td><input class="cell-input" data-field="observacoes" data-id="${r.id}" value="${escapeHtml(r.observacoes)}"></td>
-        <td><div class="row-actions"><button class="ghost" data-action="dup" data-id="${r.id}">⎘</button><button class="ghost" data-action="del" data-id="${r.id}">✕</button></div></td>
+        <td><div class="row-actions"><button class="ghost btn-action" data-action="dup" data-id="${r.id}">⎘</button><button class="ghost btn-action" data-action="del" data-id="${r.id}">✕</button></div></td>
       `;
       tbody.appendChild(tr);
     });
     attachInputs();
   }
 
-  function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
   function attachInputs(){
     document.querySelectorAll('.cell-input').forEach(inp=>{
-      inp.onchange = (e)=>{
+      inp.onchange = ()=>{
         const id = inp.dataset.id;
         const field = inp.dataset.field;
         const row = rows.find(x=>x.id===id);
         if(row){ row[field] = inp.value; markUnsaved(); }
       };
     });
-    document.querySelectorAll('[data-action]').forEach(btn=>{
+    document.querySelectorAll('.btn-action').forEach(btn=>{
       btn.onclick = ()=>{
         const id = btn.dataset.id; const action = btn.dataset.action;
-        if(action==='del'){ rows = rows.filter(r=>r.id!==id); render(); saveLocal(); }
+        if(action==='del'){ if(confirm('Remover este exercício?')){ rows = rows.filter(r=>r.id!==id); render(); saveLocal(); } }
         if(action==='dup'){ const src = rows.find(r=>r.id===id); if(src){ rows.push(makeRow(src)); render(); saveLocal(); }}
-      }
+      };
     });
   }
 
   function markUnsaved(){ saveLocalBtn.textContent = 'Salvar*'; }
 
-  function saveLocal(){ localStorage.setItem(LS_KEY, JSON.stringify(rows)); saveLocalBtn.textContent='Salvar'; msg.textContent='Salvo localmente.'; setTimeout(()=>msg.textContent='',1800);
-  }
-
-  function loadLocal(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw){ const parsed = JSON.parse(raw); if(Array.isArray(parsed)){ rows = parsed.map(r=> makeRow(r)); } }
-  }catch(e){ console.error(e); }
-  }
+  function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(rows)); saveLocalBtn.textContent='Salvar'; msg.textContent='Salvo localmente.'; setTimeout(()=>msg.textContent='',1600);}catch(e){ msg.textContent='Erro ao salvar localmente.'; console.error(e);} }
+  function loadLocal(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw){ const parsed = JSON.parse(raw); if(Array.isArray(parsed)){ rows = parsed.map(o=> makeRow(o)); // preserve shape
+          // attempt to copy original fields if present
+          rows.forEach((r,i)=>{ const original = parsed[i]; r.exercicio = original.exercicio||original.exercise||r.exercicio; r.series = original.series||original.sets||r.series; r.repeticoes = original.repeticoes||original.reps||original.repetitions||r.repeticoes; r.observacoes = original.observacoes||original.observacao||original.observations||r.observacoes; });
+        }
+      }
+    }catch(e){ console.error(e);} }
 
   function downloadJSONFile(){ const data = rows.map(({id,...rest})=>rest); const blob = new Blob([JSON.stringify(data, null, 2)],{type:'application/json'}); const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download='planilha-treino.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    msg.textContent='Arquivo gerado.'; setTimeout(()=>msg.textContent='',1500);
   }
 
-  // import from file
-  importFile.addEventListener('change', (e)=>{
+  // file import
+  if(importFile){ importFile.addEventListener('change', (e)=>{
     const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = ()=>{
       try{ const parsed = JSON.parse(reader.result); handleImportedArray(parsed); }catch(err){ alert('Arquivo inválido: JSON malformado'); }
     }; reader.readAsText(f);
-  });
-
-  // paste import
-  document.getElementById('importPaste').addEventListener('click', ()=>{
-    const t = importTextArea.value.trim(); if(!t){ msg.textContent='Cole JSON no campo.'; return; }
-    try{ const parsed = JSON.parse(t); handleImportedArray(parsed); }catch(e){ msg.textContent='JSON inválido.'; }
-  });
+  }); }
 
   function handleImportedArray(parsed){
     if(!Array.isArray(parsed)){ msg.textContent='Espere um ARRAY de objetos (JSON array).'; return; }
     rows = parsed.map(o=> makeRow(o)); render(); saveLocal(); msg.textContent='Importado com sucesso.'; setTimeout(()=>msg.textContent='',2000);
   }
 
-  // export / validate
-  document.getElementById('validateBtn').addEventListener('click', ()=>{
-    const t = importTextArea.value.trim(); if(!t){ msg.textContent='Cole JSON para validar.'; return; }
+  // paste import button
+  if(importPasteBtn){ importPasteBtn.addEventListener('click', ()=>{
+    const t = pasteTextArea.value.trim(); if(!t){ msg.textContent='Cole JSON no campo.'; return; }
+    try{ const parsed = JSON.parse(t); handleImportedArray(parsed); }catch(e){ msg.textContent='JSON inválido.'; }
+  }); }
+
+  if(validateBtn){ validateBtn.addEventListener('click', ()=>{
+    const t = pasteTextArea.value.trim(); if(!t){ msg.textContent='Cole JSON para validar.'; return; }
     try{ const p = JSON.parse(t); if(Array.isArray(p)) msg.textContent='JSON válido (array).'; else msg.textContent='JSON válido, mas não é array.'; }catch(e){ msg.textContent='JSON inválido.'; }
-  });
+    setTimeout(()=>msg.textContent='',1800);
+  }); }
 
-  // copy prompt
-  copyPrompt.onclick = ()=>{ navigator.clipboard.writeText(promptText.textContent).then(()=>{ copyPrompt.textContent='Copiado!'; setTimeout(()=>copyPrompt.textContent='Copiar prompt',1200); }); };
+  // prompt copy button
+  if(copyPromptBtn){ copyPromptBtn.addEventListener('click', async ()=>{
+    try{
+      await navigator.clipboard.writeText(promptText.textContent.trim());
+      copyPromptBtn.textContent='Copiado!';
+      setTimeout(()=>copyPromptBtn.textContent='Copiar prompt',1200);
+    }catch(e){
+      // fallback
+      const tmp = document.createElement('textarea'); tmp.value = promptText.textContent.trim(); document.body.appendChild(tmp); tmp.select(); try{ document.execCommand('copy'); copyPromptBtn.textContent='Copiado!'; setTimeout(()=>copyPromptBtn.textContent='Copiar prompt',1200);}catch(err){ alert('Não foi possível copiar automaticamente. Selecione e copie manualmente.'); } tmp.remove();
+    }
+  }); }
 
-  // add, save, download
-  addRowBtn.onclick = ()=>{ rows.push(makeRow({})); render(); saveLocal(); };
-  saveLocalBtn.onclick = ()=>{ saveLocal(); };
-  downloadBtn.onclick = ()=> downloadJSONFile();
-  exportBtn.onclick = ()=> downloadJSONFile();
-  clearAll.onclick = ()=>{ if(confirm('Limpar toda a planilha? Isso apagará os dados salvos localmente.')){ rows=[]; render(); saveLocal(); }};
+  // other UI buttons
+  if(addRowBtn) addRowBtn.addEventListener('click', ()=>{ rows.push(makeRow({})); render(); markUnsaved(); });
+  if(saveLocalBtn) saveLocalBtn.addEventListener('click', ()=> saveLocal());
+  if(downloadBtn) downloadBtn.addEventListener('click', ()=> downloadJSONFile());
+  if(exportBtn) exportBtn.addEventListener('click', ()=> downloadJSONFile());
+  if(clearAllBtn) clearAllBtn.addEventListener('click', ()=>{ if(confirm('Limpar toda a planilha? Isso apagará os dados salvos localmente.')){ rows=[]; render(); saveLocal(); }});
 
   // keyboard save
   window.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); saveLocal(); }});
 
-  // initial load
-  loadLocal(); if(rows.length===0){ // seed with a clean example row
-    rows = [ makeRow({exercicio:'Agachamento livre', series:'4', repeticoes:'6-8', observacoes:'Foco em forma'}) ];
-  }
+  // initial load and seed
+  loadLocal(); if(rows.length===0){ rows = [ makeRow({exercicio:'Agachamento livre', series:'4', repeticoes:'6-8', observacoes:'Foco em forma'}) ]; }
   render();
 
-  // small helpers to allow user to paste JSON via prompt area quickly
-  document.getElementById('exportJSON').addEventListener('click', ()=>downloadJSONFile());
-
-  // validate file when pasting JSON directly
-  document.getElementById('pasteImport')?.addEventListener('input', ()=>{ msg.textContent=''; });
-
-  // expose a simple import function for dev tools
+  // expose for devtools
   window.FV = {importArray:handleImportedArray, getData:()=>rows.map(({id,...r})=>r)};
-
 })();
+// botão Abrir ChatGPT
+const openChatGPTBtn = document.getElementById('openChatGPT');
+if(openChatGPTBtn){ openChatGPTBtn.addEventListener('click', ()=> window.open('https://chat.openai.com/', '_blank')); }
+
 </script>
 </body>
 </html>
